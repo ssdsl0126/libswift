@@ -13,19 +13,13 @@ all::
 	$(ECHO_NOTHING)mkdir -p $(OBJ_PATH)$(ECHO_END)
 	$(ECHO_NOTHING)set -e; \
 	FOUND_SWIFT_LIBS=0; \
-	PRIMARY_SWIFT_DIR="$(XCODE_USR)/lib/swift/iphoneos"; \
-	if [ -d "$$PRIMARY_SWIFT_DIR" ] && find "$$PRIMARY_SWIFT_DIR" -maxdepth 1 -type f -name 'libswift*.dylib' | grep -q .; then \
-		rsync -ra "$$PRIMARY_SWIFT_DIR"/libswift*.dylib $(OBJ_PATH); \
-		FOUND_SWIFT_LIBS=1; \
-	fi; \
-	for SWIFT_DIR in $$(find "$(XCODE_USR)/lib/swift" -type d -path '*/swift-*/iphoneos' 2>/dev/null | sort -u); do \
+	for SWIFT_DIR in "$(XCODE_USR)/lib/swift/iphoneos" $$(find "$(XCODE_USR)/lib" -maxdepth 1 -type d -name 'swift-*' 2>/dev/null | sort -u | sed 's#$$#/iphoneos#'); do \
+		[ -d "$$SWIFT_DIR" ] || continue; \
 		for SWIFT_LIB in "$$SWIFT_DIR"/libswift*.dylib; do \
 			[ -f "$$SWIFT_LIB" ] || continue; \
 			SWIFT_BASE=$$(basename "$$SWIFT_LIB"); \
-			if [ ! -f "$(OBJ_PATH)/$$SWIFT_BASE" ]; then \
-				rsync -a "$$SWIFT_LIB" "$(OBJ_PATH)/$$SWIFT_BASE"; \
-				FOUND_SWIFT_LIBS=1; \
-			fi; \
+			rsync -a "$$SWIFT_LIB" "$(OBJ_PATH)/$$SWIFT_BASE"; \
+			FOUND_SWIFT_LIBS=1; \
 		done; \
 	done; \
 	if [ $$FOUND_SWIFT_LIBS -eq 0 ]; then \

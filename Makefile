@@ -1,5 +1,5 @@
 NULL_NAME := libswift
-INSTALL_PATH := /usr/lib/libswift/stable
+INSTALL_PATH := $(THEOS_PACKAGE_INSTALL_PREFIX)/usr/lib/libswift/stable
 OBJ_PATH = $(THEOS_OBJ_DIR)
 
 XCODE ?= $(shell xcode-select -p)/../..

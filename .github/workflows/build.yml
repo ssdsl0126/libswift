@@ -1,0 +1,74 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+name: Build
+
+jobs:
+  make:
+    name: Build libswift (Theos)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode (latest stable)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show build environment
+        run: |
+          echo "Runner architecture: $RUNNER_ARCH"
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Setup Procursus Bootstrap (install)
+        run: |
+          if [ "$RUNNER_ARCH" = "ARM64" ]; then
+            BOOTSTRAP_ARCH="darwin-arm64"
+          else
+            BOOTSTRAP_ARCH="darwin-amd64"
+          fi
+          BOOTSTRAP_FILE="bootstrap-${BOOTSTRAP_ARCH}.tar.zst"
+          curl -L --fail --retry 3 -o "$BOOTSTRAP_FILE" "https://apt.procurs.us/bootstraps/big_sur/$BOOTSTRAP_FILE"
+          TAR_BIN="$(command -v gtar || command -v tar)"
+          sudo "$TAR_BIN" --preserve-permissions -xkf "./$BOOTSTRAP_FILE" -C /
+          echo '/opt/procursus/sbin:/opt/procursus/bin' >> $GITHUB_PATH
+          PATH=/opt/procursus/sbin:/opt/procursus/bin:$PATH sudo /opt/procursus/bin/apt update
+          sudo /opt/procursus/bin/apt -V full-upgrade -y --allow-downgrades -oDpkg::Options::=--force-confdef -oDpkg::Options::=--force-confnew
+        continue-on-error: true
+
+      - name: Upgrade
+        run: |
+          sudo /opt/procursus/bin/apt -V upgrade -y --allow-downgrades -oDpkg::Options::=--force-confdef -oDpkg::Options::=--force-confnew
+
+      - name: Upgrade and install
+        run: |
+          sudo /opt/procursus/bin/apt install zstd apt-utils ldid xz-utils bzip2 lz4 git make rsync -y --allow-downgrades -oDpkg::Options::=--force-confdef -oDpkg::Options::=--force-confnew
+
+      - name: Add Procursus to PATH
+        run: |
+          echo '/opt/procursus/sbin:/opt/procursus/bin' >> $GITHUB_PATH
+
+      - name: Install Theos (official)
+        run: |
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "$HOME/theos/bin" >> $GITHUB_PATH
+
+      - name: Build package
+        env:
+          THEOS: ${{ env.THEOS }}
+        run: |
+          make clean
+          make package FINALPACKAGE=1
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libswift-packages
+          path: packages/*

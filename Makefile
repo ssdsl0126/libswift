@@ -23,10 +23,14 @@ all::
 		done; \
 	done; \
 	if [ $$FOUND_SWIFT_LIBS -eq 0 ]; then \
-		echo "No libswift*.dylib found under $(XCODE_USR)/lib/swift"; \
+		echo "No libswift*.dylib found under $(XCODE_USR)/lib"; \
 		exit 1; \
 	fi$(ECHO_END)
-	$(ECHO_NOTHING)ldid -S $(OBJ_PATH)/*$(ECHO_END)
+	$(ECHO_NOTHING)set -e; \
+	for SWIFT_DYLIB in $(OBJ_PATH)/libswift*.dylib; do \
+		[ -f "$$SWIFT_DYLIB" ] || continue; \
+		ldid -S "$$SWIFT_DYLIB"; \
+	done$(ECHO_END)
 
 stage::
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/$(INSTALL_PATH)$(ECHO_END)
